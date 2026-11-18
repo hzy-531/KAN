@@ -77,11 +77,10 @@ LOCKDOWN_DAY = 83  # 2020-01-23
 TRIM_START = 7      # 截掉前端 lookback 学习期 (day 0–6 为 0)
 TRIM_END = 133      # 截掉尾端未预测的几天 (day 134–135 为 0)
 
-# 颜色 (与旧版一致, 保持论文 caption 的紫色封城线约定)
+# 颜色
 BETA_COLOR = '#1f77b4'      # β 蓝
 CONTACT_COLOR = '#9467bd'   # C 紫
 RT_COLOR = '#ff7f0e'        # Rt 橙
-LOCKDOWN_COLOR = '#7B1FA2'  # 封城线 深紫
 RT1_COLOR = '#999999'       # Rt=1 参考线 灰
 
 
@@ -130,14 +129,12 @@ def main():
     contact = contact[TRIM_START:TRIM_END + 1]
     rt = rt[TRIM_START:TRIM_END + 1]
 
-    # x 轴刻度: ~每月一个常规刻度 + 封城日特殊刻度
-    regular_ticks = [TRIM_START, 37, 68, 99, TRIM_END]
-    lockdown_str = dates[LOCKDOWN_DAY].strftime('%m/%d') if hasattr(dates[LOCKDOWN_DAY], 'strftime') else '01/23'
-    all_ticks = sorted(set(regular_ticks + [LOCKDOWN_DAY]))
-    all_labels = [(dates[i].strftime('%m/%d') if hasattr(dates[i], 'strftime') else str(dates[i])[:5])
+    # x 轴刻度: 均匀等分，封城日 (day 83 = 01-23) 落在一个普通刻度上，不单独高亮
+    all_ticks = np.round(np.linspace(TRIM_START, TRIM_END, 6)).astype(int)
+    all_labels = [(dates[i].strftime('%m-%d') if hasattr(dates[i], 'strftime') else str(dates[i])[:5])
                   for i in all_ticks]
 
-    fig, axes = plt.subplots(6, 4, figsize=(16, 21))
+    fig, axes = plt.subplots(6, 4, figsize=(16, 14), sharex=True)
     x = np.arange(TRIM_START, TRIM_END + 1)
 
     for idx, (city, ax) in enumerate(zip(CITIES, axes.flat)):
@@ -166,13 +163,9 @@ def main():
         ax2.set_ylim(rt_lo - 0.12 * rt_span, rt_hi + 0.12 * rt_span)
         ax2.yaxis.set_major_locator(MaxNLocator(4))
 
-        # x 轴: 常规刻度 + 封城日紫色刻度 (不再画竖直封城线)
+        # x 轴: 均匀刻度 (封城日 01-23 作为普通刻度，不再单独高亮)
         ax.set_xticks(all_ticks)
         ax.set_xticklabels(all_labels, fontsize=9)
-        for tl in ax.get_xticklabels():
-            if tl.get_text() == lockdown_str:
-                tl.set_color(LOCKDOWN_COLOR)
-                tl.set_fontweight('bold')
 
         # 方框样式
         style_box(ax, ax2)
@@ -189,9 +182,13 @@ def main():
                        loc='upper right', fontsize=9, framealpha=0.85, ncol=3,
                        handlelength=1.6, columnspacing=0.8, borderaxespad=0.3)
 
-    # 24 城刚好铺满 6×4=24, 无需隐藏
+    # 共享 x 轴：仅最底行显示日期刻度，其余行隐藏以节省纵向空间
+    for r in range(5):
+        for c in range(4):
+            axes[r, c].tick_params(axis='x', labelbottom=False)
+
     fig.patch.set_facecolor('white')
-    plt.tight_layout(pad=1.0, h_pad=1.2, w_pad=1.0)
+    plt.tight_layout(pad=1.0, h_pad=0.0, w_pad=1.0)
 
     os.makedirs(OUT_DIR, exist_ok=True)
     for ext in ('pdf', 'svg', 'png'):

@@ -47,7 +47,7 @@ pip install -r requirements.txt
 
 ## Data
 
-The model reads four spreadsheets under `data/合并数据/` (see `data/statement.md` for the schema):
+The model reads four spreadsheets under `data/合并数据/` (see `data/合并数据/statement.md` for the schema):
 
 - `01_Influenza_Target_Filled.xlsx` — daily influenza incidence targets
 - `02_City_Features.xlsx` — static city-level covariates

@@ -207,15 +207,16 @@ class ImprovedActualDataVisualizer:
         pred_np = pred.numpy().flatten() if isinstance(pred, torch.Tensor) else np.array(pred).flatten()
         targ_np = targ.numpy().flatten() if isinstance(targ, torch.Tensor) else np.array(targ).flatten()
 
-        fig, ax = plt.subplots(figsize=(10, 8))
+        fig, ax = plt.subplots(figsize=(5.8, 5.4))
         try:
             from scipy.stats import gaussian_kde
             xy = np.vstack([targ_np, pred_np])
             z = gaussian_kde(xy)(xy)
-            scatter = ax.scatter(targ_np, pred_np, c=z, s=20, alpha=0.6, cmap='cividis', edgecolors='none')
-            plt.colorbar(scatter, ax=ax).set_label('Point Density', fontsize=11)
+            scatter = ax.scatter(targ_np, pred_np, c=z, s=22, alpha=0.6, cmap='cividis', edgecolors='none')
+            has_cbar = True
         except:
-            ax.scatter(targ_np, pred_np, s=20, alpha=0.6, color='blue', edgecolors='none')
+            scatter = ax.scatter(targ_np, pred_np, s=22, alpha=0.6, color='blue', edgecolors='none')
+            has_cbar = False
         min_v, max_v = min(targ_np.min(), pred_np.min()), max(targ_np.max(), pred_np.max())
         ax.plot([min_v, max_v], [min_v, max_v], 'k--', linewidth=2, alpha=0.7, label='Perfect Prediction')
 
@@ -233,8 +234,8 @@ class ImprovedActualDataVisualizer:
                 transform=ax.transAxes, fontsize=12, va='top',
                 bbox=dict(boxstyle='round', facecolor='white', alpha=1.0))
 
-        ax.set_xlabel('Actual Cases', fontsize=12, fontweight='bold')
-        ax.set_ylabel('Predicted Cases', fontsize=12, fontweight='bold')
+        ax.set_xlabel(r'Observed cases ($y$)', fontsize=15)
+        ax.set_ylabel(r'Predicted cases ($\hat{y}$)', fontsize=15)
 
         # pure white background + black boxed axes (all four sides)
         ax.set_facecolor('white')
@@ -244,7 +245,14 @@ class ImprovedActualDataVisualizer:
             ax.spines[s].set_visible(True)
 
         ax.set_aspect('equal', adjustable='box')
-        plt.tight_layout()
+        if has_cbar:
+            from mpl_toolkits.axes_grid1 import make_axes_locatable
+            divider = make_axes_locatable(ax)
+            cax = divider.append_axes('right', size='5%', pad=0.04)
+            cbar = fig.colorbar(scatter, cax=cax)
+            cbar.set_label('Point Density', fontsize=11)
+        # 不用 tight_layout：会把等比例收缩后的坐标轴与 divider 锁定的 colorbar 拆开，
+        # 导致 colorbar 上下超出去。靠 savefig 的 bbox_inches='tight' 裁边即可。
         out_dir = os.path.join(self.viz_dir, "prediction")
         os.makedirs(out_dir, exist_ok=True)
         for ext in ('png', 'svg', 'pdf'):
@@ -727,35 +735,29 @@ class ImprovedActualDataVisualizer:
             c = contact_np[start_idx:end_idx, c_idx]
             r = rt_np[start_idx:end_idx, c_idx]
 
-            ax.plot(x_valid, b, '-', color='#1f77b4', linewidth=1.2, label=r'$\beta$')
-            ax.plot(x_valid, c, '--', color='#9467bd', linewidth=1.2, label='Contact')
-            ax.set_ylabel(r'$\beta$ / Contact', fontsize=11, color='black')
-            ax.tick_params(axis='y', labelcolor='black', labelsize=9)
+            ax.plot(x_valid, b, '-', color='#1f77b4', linewidth=2.0, label=r'$\beta$')
+            ax.plot(x_valid, c, '--', color='#9467bd', linewidth=2.0, label='Contact')
+            ax.set_ylabel(r'$\beta$ / Contact', fontsize=14, color='black')
+            ax.tick_params(axis='y', labelcolor='black', labelsize=12)
             ax.set_facecolor('white')
             ax.set_ylim(left_ylim)
 
-            # x-axis in readable dates; lockdown date marked below the axis (not a
-            # vertical line crossing the curves)
-            valid_dates = dates_list[start_idx:end_idx]
+            # x-axis in readable dates; the lockdown date (01-23) is shifted onto the
+            # tick grid and noted in the figure legend.
+            valid_dates = dates_list[start_idx + 1:end_idx + 1]
             n_xticks = 6
             xtick_pos = np.linspace(0, len(x_valid) - 1, n_xticks, dtype=int)
             ax.set_xticks(x_valid[xtick_pos])
             ax.set_xticklabels([valid_dates[i].strftime('%m-%d') for i in xtick_pos],
-                               fontsize=9)
-            ax.tick_params(axis='x', labelcolor='black', labelsize=9)
-            lockdown_date_str = (dates_list[lockdown_day].strftime('%b %d')
-                                 if lockdown_day < len(dates_list) else 'Jan 23')
-            ax.annotate(f'Wuhan lockdown\n({lockdown_date_str})',
-                        xy=(lockdown_day, 0), xycoords=('data', 'axes fraction'),
-                        xytext=(0, -30), textcoords='offset points',
-                        ha='center', va='top', fontsize=9, color='black',
-                        fontweight='bold',
-                        arrowprops=dict(arrowstyle='-', color='black', lw=0.7))
+                               fontsize=12)
+            ax.tick_params(axis='x', labelcolor='black', labelsize=12)
+            lockdown_date_str = (dates_list[lockdown_day].strftime('%m-%d')
+                                 if lockdown_day < len(dates_list) else '01-23')
 
             ax2 = ax.twinx()
-            ax2.plot(x_valid, r, '-', color='#ff7f0e', linewidth=1.4, label=r'$R_t$')
-            ax2.set_ylabel(r'$R_t$', fontsize=11, color='black')
-            ax2.tick_params(axis='y', labelcolor='black', labelsize=9)
+            ax2.plot(x_valid, r, '-', color='#ff7f0e', linewidth=2.2, label=r'$R_t$')
+            ax2.set_ylabel(r'$R_t$', fontsize=14, color='black')
+            ax2.tick_params(axis='y', labelcolor='black', labelsize=12)
             ax2.set_facecolor('none')
 
             # black solid axis box (top/left/bottom on ax, right on ax2)
@@ -771,14 +773,18 @@ class ImprovedActualDataVisualizer:
 
             ax2.set_ylim(rt_ylim)
 
-            ax.set_title(f"({'ab'[panel_idx]}) {label_text}", fontsize=12, fontweight='bold')
+            ax.set_title(f"({'ab'[panel_idx]}) {label_text}", fontsize=14, fontweight='bold')
 
             # 图例只放第一个子图 (两子图图例完全相同)
             if panel_idx == 0:
+                import matplotlib.patches as mpatches
                 lines1, labels1 = ax.get_legend_handles_labels()
                 lines2, labels2 = ax2.get_legend_handles_labels()
-                ax2.legend(lines1 + lines2, labels1 + labels2, loc='upper left',
-                           fontsize=9, framealpha=0.9)
+                lock_handle = mpatches.Patch(color='none',
+                                             label=f'Lockdown: {lockdown_date_str}')
+                ax2.legend(lines1 + lines2 + [lock_handle],
+                           labels1 + labels2 + [f'Lockdown: {lockdown_date_str}'],
+                           loc='upper left', fontsize=11, framealpha=0.9)
 
         os.makedirs(os.path.join(self.viz_dir, "comparison"), exist_ok=True)
         out = os.path.join(self.viz_dir, "comparison", "lockdown_params_comparison.png")
